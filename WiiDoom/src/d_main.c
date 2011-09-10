@@ -1876,12 +1876,9 @@ void WADPicker()
 
 		while (dirent != NULL)
 		{
-#ifndef _DIRENT_HAVE_D_TYPE
-// generate compiler error if dirent->d_type feature is not available (will need to use fstat instead?)
-adslfjkldskfjds
-#endif
 			len = strlen(dirent->d_name);
 
+			// note that apparently some systems don't support dirent->d_type, but devkitpro reports support for it
 			if (dirent->d_type == DT_REG && 
 			    !strcasecmp(dirent->d_name + (len - 4), ".wad"))
 			{
