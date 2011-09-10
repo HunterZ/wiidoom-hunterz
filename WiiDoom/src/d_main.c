@@ -50,6 +50,7 @@
 #include <unistd.h>
 #endif
 #include <sys/types.h>
+#include <dirent.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 
@@ -316,7 +317,7 @@ void D_Display (void)
       R_DrawViewBorder();
 
 		// Draw wii ir
-		if (ir_crosshair == 1)		
+		if (ir_crosshair == 1)
 			if (gamestate == GS_LEVEL && (!(automapmode & am_active)))
 	    	if (joyirx > 0 && joyirx < 320 && joyiry > 0 && joyiry < 210)
 		      V_DrawNamePatch(joyirx, joyiry, 0, "STCFN088", CR_DEFAULT, VPT_NONE); // TEST IR INDICATOR
@@ -375,9 +376,9 @@ static const char *auto_shot_fname;
 static void D_DoomLoop(void)
 {
 	atexit(M_SaveDefaults);
-	
-  for (;;)
-    {
+
+	for (;;)
+	{
       WasRenderedInTryRunTics = false;
       // frame syncronous IO operations
       I_StartFrame ();
@@ -776,7 +777,7 @@ static char *FindIWADFile(void)
 
   for (i=0; !iwad && i<nstandard_iwads; i++)
     iwad = I_FindFile(standard_iwads[i], ".wad");
-      
+
   return iwad;
 }
 
@@ -821,7 +822,7 @@ static void IdentifyVersion (void)
   }
   if(fp2 && !sd)
   usb = true;
-  
+
   char* p;
   if(sd)
   p="sd:/apps/wiidoom/data";
@@ -1188,8 +1189,8 @@ static void L_SetupConsoleMasks(void) {
 static void D_DoomMainSetup(void)
 {
   int p,slot;
- 
-  FILE * fp2;  
+
+  FILE * fp2;
   bool checkup = false;
   fp2 = fopen("sd:/apps/wiidoom/data/prboom.wad", "rb");
   if(fp2){
@@ -1201,7 +1202,7 @@ static void D_DoomMainSetup(void)
   }
   if(fp2 && !checkup)
   remove("usb:/apps/wiidoom/data/output.txt");
-  
+
   if(fp2)
   fclose(fp2);
 
@@ -1463,7 +1464,7 @@ static void D_DoomMainSetup(void)
   // cph - support MBF -noload parameter
   if (!M_CheckParm("-noload")) {
     int i;
-    
+
     for (i=0; i<MAXLOADFILES*2; i++) {
       const char *fname = (i < MAXLOADFILES) ? wad_files[i]
   : deh_files[i - MAXLOADFILES];
@@ -1517,7 +1518,7 @@ static void D_DoomMainSetup(void)
 		if(true)
                 I_Error("D_DoomMainSetup: Cannot find .deh or .bex file named %s",myargv[p]);
             }
-	  
+
           // during the beta we have debug output to dehout.txt
           ProcessDehFile(file,D_dehout(),0);
         }
@@ -1546,7 +1547,7 @@ static void D_DoomMainSetup(void)
 		modifiedgame = true;
   	D_AddFile(selectedPWADFiles[x], source_pwad);
 	}
-  
+
   if (!(p = M_CheckParm("-playdemo")) || p >= myargc-1) {   /* killough */
     if ((p = M_CheckParm ("-fastdemo")) && p < myargc-1)    /* killough */
       fastdemo = true;             // run at fastest speed possible
@@ -1740,75 +1741,91 @@ void WADPicker()
 	int LOGOX = 10;
 	int LOGOY = 10;
 	int CHAR_YPOS;
-	
+
 	int joyWait = SDL_GetTicks();
 	int selectedPWADs[MAX_PWADS];
 	int selectedPWADIndex;
 	for (selectedPWADIndex = 0; selectedPWADIndex < MAX_PWADS; selectedPWADIndex++)
 		selectedPWADs[selectedPWADIndex] = -1;
-		
+
 	SDL_Surface *screen;
 	screen = SDL_SetVideoMode(640, 480, 16, SDL_DOUBLEBUF);
-	
+
 	//Determine SD or USB
-    FILE * fp2;
-    bool sd = false;
+	FILE * fp2;
+	bool sd = false;
 	bool usb = false;
-    fp2 = fopen("sd:/apps/wiidoom/data/prboom.cfg", "rb");
-    if(fp2)
-    sd = true;
-    if(!fp2){
-    fp2 = fopen("usb:/apps/wiidoom/data/prboom.cfg", "rb");
-    }
-    if(fp2 && !sd)
-    usb = true;
-	
-	if(fp2);
-	fclose(fp2);
-	
+
+	// try SD first
+	fp2 = fopen("sd:/apps/wiidoom/data/prboom.cfg", "rb");
+
+	if (fp2)
+	{
+		sd = true;
+	}
+	else
+	{
+		// try USB
+		fp2 = fopen("usb:/apps/wiidoom/data/prboom.cfg", "rb");
+
+		if (fp2)
+		{
+			usb = true;
+		}
+	}
+
+	if(fp2)
+	{
+		fclose(fp2);
+	}
+
+	// found neither
 	if(!sd && !usb)
-    exit(0);
+	{
+		exit(0);
+	}
 
 	// Load font
 	TTF_Init();
 	TTF_Font *doomfnt24;
 	TTF_Font *doomfnt18;
-	if(sd){
-	doomfnt24 = TTF_OpenFont( "sd:/apps/wiidoom/data/fonts/DooM.ttf", 24 );
-	doomfnt18 = TTF_OpenFont( "sd:/apps/wiidoom/data/fonts/DooM.ttf", 18 );
+	if(sd)
+	{
+		doomfnt24 = TTF_OpenFont( "sd:/apps/wiidoom/data/fonts/DooM.ttf", 24 );
+		doomfnt18 = TTF_OpenFont( "sd:/apps/wiidoom/data/fonts/DooM.ttf", 18 );
 	}
-	if(usb){
-	doomfnt24 = TTF_OpenFont( "usb:/apps/wiidoom/data/fonts/DooM.ttf", 24 );
-	doomfnt18 = TTF_OpenFont( "usb:/apps/wiidoom/data/fonts/DooM.ttf", 18 );
+	else if(usb)
+	{
+		doomfnt24 = TTF_OpenFont( "usb:/apps/wiidoom/data/fonts/DooM.ttf", 24 );
+		doomfnt18 = TTF_OpenFont( "usb:/apps/wiidoom/data/fonts/DooM.ttf", 18 );
 	}
 	SDL_Color clrFg = {0,0,255};
 	SDL_Color clrFgSelected = {255,0,0};
 	SDL_Color clrStartText = {255,255,255};
-	
+
 	// Load logo
 	SDL_Surface *logo;
 	if(sd)
-	logo = IMG_Load("sd:/apps/wiidoom/data/images/doom.bmp");
-	if(usb)
-	logo = IMG_Load("usb:/apps/wiidoom/data/images/doom.bmp");
-	
+		logo = IMG_Load("sd:/apps/wiidoom/data/images/doom.bmp");
+	else if(usb)
+		logo = IMG_Load("usb:/apps/wiidoom/data/images/doom.bmp");
+
  	SDL_Rect rlogo = {LOGOX, LOGOY, 0, 0}; 
-  
-  // Start button
-  SDL_Rect startRect = {STARTX, STARTY, STARTWIDTH, STARTHEIGHT};
-  SDL_Rect startTextRect = {STARTX + 70, STARTY + 5, STARTWIDTH, STARTHEIGHT};
-  SDL_Surface *startButton = TTF_RenderText_Solid(doomfnt24, "START" , clrStartText);
+
+	// Start button
+	SDL_Rect startRect = {STARTX, STARTY, STARTWIDTH, STARTHEIGHT};
+	SDL_Rect startTextRect = {STARTX + 70, STARTY + 5, STARTWIDTH, STARTHEIGHT};
+	SDL_Surface *startButton = TTF_RenderText_Solid(doomfnt24, "START" , clrStartText);
 
  	// PWAD Header
  	SDL_Rect pwadHeaderRect = {395, 30, 250, 40};
 	SDL_Surface *pwadHeader = TTF_RenderText_Solid(doomfnt18, "PWAD (Optional)" , clrStartText);
-	  
-  // Create cursor surface
-  SDL_Surface *sCursor = TTF_RenderText_Solid(doomfnt24, ".", clrStartText);  
-  
-  
-  // Create text surface
-  SDL_Surface *sText = NULL;
+
+	// Create cursor surface
+	SDL_Surface *sCursor = TTF_RenderText_Solid(doomfnt24, ".", clrStartText);  
+
+	// Create text surface
+	SDL_Surface *sText = NULL;
 
 	// Load Boxes
 	SDL_Rect rIWADBox_outer = {IWADBOXX, IWADBOXY, IWADBOXWIDTH, IWADBOXHEIGHT};
@@ -1817,13 +1834,14 @@ void WADPicker()
 	SDL_Rect rPWADBox_outer = {PWADBOXX, PWADBOXY, PWADBOXWIDTH, PWADBOXHEIGHT};
 	SDL_Rect rPWADBox_inner = {PWADBOXX + (IWADBOXLINEWIDTH/2), PWADBOXY + (IWADBOXLINEWIDTH/2), \
 		PWADBOXWIDTH - PWADBOXLINEWIDTH, PWADBOXHEIGHT - IWADBOXLINEWIDTH};
-	
-  
-  int selectedIWAD = -1;
-	// Load IWAD files	
+
+
+	// Load IWAD files
+	int selectedIWAD = -1;
 	char* foundIwads[nstandard_iwads];
-	int numIWADSFound = 0;		
-	int i;    	
+	int numIWADSFound = 0;
+	int i;
+
 	for (i=0; i<nstandard_iwads; i++)
 	{
 		if (I_FindFile(standard_iwads[i], ".wad"))
@@ -1835,268 +1853,317 @@ void WADPicker()
 			foundIwads[numIWADSFound++][len-4] = 0;
 		}
 	}
-	
+
 	// Load PWAD files
 	int numPWADSFound = 0;
 	struct stat st;
 	char filename[MAXPATHLEN]; // always guaranteed to be enough to hold a filename
-	DIR_ITER* dir;
-    if(sd)		
-	dir = diropen ("sd:/apps/wiidoom/data/pwads");
-	if(usb)
-	dir = diropen ("usb:/apps/wiidoom/data/pwads");
-	if (dir != NULL) {
-		// Get a count of the files
-		while (dirnext(dir, filename, &st) == 0) {
-			if ((st.st_mode & S_IFREG) && (strcasecmp(filename+strlen(filename)-4,".wad") == 0))
+	DIR* dir = NULL;
+	struct dirent* dirent = NULL;
+	char* foundPwads[numPWADSFound];
+	int len = 0;
+	i=0;
+
+	if(sd)
+		dir = opendir ("sd:/apps/wiidoom/data/pwads");
+	else if(usb)
+		dir = opendir ("usb:/apps/wiidoom/data/pwads");
+
+	if (dir != NULL)
+	{
+		// Get a count of PWADs and a list of their names
+		dirent = readdir(dir);
+
+		while (dirent != NULL)
+		{
+#ifndef _DIRENT_HAVE_D_TYPE
+// generate compiler error if dirent->d_type feature is not available (will need to use fstat instead?)
+adslfjkldskfjds
+#endif
+			len = strlen(dirent->d_name);
+
+			if (dirent->d_type == DT_REG && 
+			    !strcasecmp(dirent->d_name + (len - 4), ".wad"))
 			{
-				numPWADSFound++;
+				// note that numPWADSFound is used before incrementing 
+				//  because the array index starts at zero
+				foundPwads[numPWADSFound] = malloc(len);
+				strncpy(foundPwads[numPWADSFound], dirent->d_name, len-4);
+				foundPwads[numPWADSFound][len-4] = 0;
+
+				++numPWADSFound;
 				if (numPWADSFound >= MAX_PWADS)
 					break;
 			}
-		}
-		// Reset dir
-		dirreset(dir);
-	}
-	char* foundPwads[numPWADSFound];
-	// Create PWAD char array
-	i=0;
-	while (dirnext(dir, filename, &st) == 0) {
-		if ((st.st_mode & S_IFREG) && (strcasecmp(filename+strlen(filename)-4,".wad") == 0))
-		{
-			int len = strlen(filename);
-			foundPwads[i] = malloc(len);
-			strncpy(foundPwads[i], filename, len-4);
-			foundPwads[i][len-4] = 0;
-			i++;
-			if (i >= MAX_PWADS)
-					break;
-		}
-	}
-	
-	bool done = false;  
-	
-  int ax = 320; 
-  int ay = 240;
-  
-  while (!done)
-  {  		
-  	SDL_FillRect(screen, NULL, SDL_MapRGB(screen->format, 0, 0, 0));
-	
-	PAD_ScanPads();
-	s32 pad_stickx = PAD_StickX(0);
-    s32 pad_sticky = PAD_StickY(0);
-  	
-  	// Get Wiimote data
-  	WPAD_ScanPads();
-  	u32 wpaddown = WPAD_ButtonsDown(0);
-  	ir_t ir;
-	
-	WPAD_IR(0, &ir);
-	if(ir.ax > 0 && ir.ax < 640)
-	ax = ir.ax;
-	if(ir.ay > 0 && ir.ay < 480)
-	ay = ir.ay;
-	
-	if (pad_stickx < -20) //Left
-		ax -= 2;
-	else if (pad_stickx > 20) //Right
-		ax += 2;
 
-	if (pad_sticky > 20)//Up
-		ay -= 2;
-	else if (pad_sticky < -20)//Down
-		ay += 2;
-		
-	  // Display Logo
-  	SDL_BlitSurface (logo, NULL, screen, &rlogo);
-  	
-  	// Display boxes
-  	SDL_FillRect(screen, &rIWADBox_outer, SDL_MapRGB(screen->format, 255, 255, 255));
-  	SDL_FillRect(screen, &rIWADBox_inner, SDL_MapRGB(screen->format, 0, 0, 0));
-  	SDL_FillRect(screen, &rPWADBox_outer, SDL_MapRGB(screen->format, 255, 255, 255));
-  	SDL_FillRect(screen, &rPWADBox_inner, SDL_MapRGB(screen->format, 0, 0, 0));
-  	
-  	// Display PWAD Header
-  	SDL_BlitSurface(pwadHeader, NULL, screen, &pwadHeaderRect);
-  	
-  	// Display start button
-  	// Do alpha fading for start button
+
+			dirent = readdir(dir);
+		}
+
+		// Reset dir (no longer needed because count and name loops were combined)
+//		rewinddir(dir);
+	}
+
+	bool done = false;
+	int ax = 320;
+	int ay = 240;
+
+	while (!done)
+	{
+		SDL_FillRect(screen, NULL, SDL_MapRGB(screen->format, 0, 0, 0));
+
+		PAD_ScanPads();
+		s32 pad_stickx = PAD_StickX(0);
+		s32 pad_sticky = PAD_StickY(0);
+
+	  	// Get Wiimote data
+	  	WPAD_ScanPads();
+	  	u32 wpaddown = WPAD_ButtonsDown(0);
+	  	ir_t ir;
+
+		WPAD_IR(0, &ir);
+		if(ir.ax > 0 && ir.ax < 640)
+			ax = ir.ax;
+		if(ir.ay > 0 && ir.ay < 480)
+			ay = ir.ay;
+
+		if (pad_stickx < -20) //Left
+			ax -= 2;
+		else if (pad_stickx > 20) //Right
+			ax += 2;
+
+		if (pad_sticky > 20)//Up
+			ay -= 2;
+		else if (pad_sticky < -20)//Down
+			ay += 2;
+
+		// Display Logo
+	  	SDL_BlitSurface (logo, NULL, screen, &rlogo);
+
+	  	// Display boxes
+	  	SDL_FillRect(screen, &rIWADBox_outer, SDL_MapRGB(screen->format, 255, 255, 255));
+	  	SDL_FillRect(screen, &rIWADBox_inner, SDL_MapRGB(screen->format, 0, 0, 0));
+	  	SDL_FillRect(screen, &rPWADBox_outer, SDL_MapRGB(screen->format, 255, 255, 255));
+	  	SDL_FillRect(screen, &rPWADBox_inner, SDL_MapRGB(screen->format, 0, 0, 0));
+
+	  	// Display PWAD Header
+	  	SDL_BlitSurface(pwadHeader, NULL, screen, &pwadHeaderRect);
+
+	  	// Display start button
+	  	// Do alpha fading for start button
 		if (STARTALPHA >= 253)
 			STARTFADEIN = false;
 		else if (STARTALPHA <= 2)
 			STARTFADEIN = true;
-		  if (STARTFADEIN)
-				STARTALPHA+=5;
-		  else
-				STARTALPHA-=5;
+		if (STARTFADEIN)
+			STARTALPHA+=5;
+		else
+			STARTALPHA-=5;
+
 		SDL_SetAlpha(startButton, SDL_SRCALPHA, STARTALPHA);
-  	if (selectedIWAD != -1)
+
+		if (selectedIWAD != -1)
 		{
 			SDL_FillRect(screen, &startRect, SDL_MapRGB(screen->format, 82, 0, 0));
 			SDL_BlitSurface(startButton, NULL, screen, &startTextRect);
 		}
-		
+
 		// Display IWAD files
-  	int i;
-  	CHAR_YPOS = IWADCHARY;
-  	for (i=0; i<numIWADSFound; i++)
+	  	CHAR_YPOS = IWADCHARY;
+
+	  	for (i=0; i<numIWADSFound; i++)
 		{
 			SDL_Rect rcDest = {IWADCHARX,CHAR_YPOS, 0,0};
+
 			if (selectedIWAD == i)
-				sText =  TTF_RenderText_Solid(doomfnt24, foundIwads[i] , clrFgSelected);
+				sText = TTF_RenderText_Solid(doomfnt24, foundIwads[i] , clrFgSelected);
 			else
-				sText =  TTF_RenderText_Solid(doomfnt24, foundIwads[i] , clrFg);
+				sText = TTF_RenderText_Solid(doomfnt24, foundIwads[i] , clrFg);
+
 			SDL_BlitSurface( sText,NULL,screen,&rcDest );
+
 			if (sText)
 				SDL_FreeSurface( sText );
-			CHAR_YPOS += IWADCHARSPACING;
 
+			CHAR_YPOS += IWADCHARSPACING;
 		}
-			
-		
+
 		// Display PWAD files
 		CHAR_YPOS = PWADCHARY;
+
 		bool found;
 		int x;
-  	for (x=0; (((PWADSTARTNUM + x) < numPWADSFound) && (x < PWADMAXPAGE)); x++)
-  	{
-  		int i = PWADSTARTNUM + x;
+
+	  	for (x=0; (((PWADSTARTNUM + x) < numPWADSFound) && (x < PWADMAXPAGE)); x++)
+	  	{
+  			int i = PWADSTARTNUM + x;
+
 			found = false;
 			SDL_Rect rcDest = {PWADCHARX,CHAR_YPOS, 0,0};
+
 			for (selectedPWADIndex = 0; selectedPWADIndex < MAX_PWADS; selectedPWADIndex++)
+			{
 				if (selectedPWADs[selectedPWADIndex] == i)
 				{
-					found = true; 			  				  	  
+					found = true;
 					sText =  TTF_RenderText_Solid(doomfnt24, foundPwads[i] , clrFgSelected);
 					break;
 				}
-  		if (!found)
+			}
+
+	  		if (!found)
 				sText =  TTF_RenderText_Solid(doomfnt24, foundPwads[i] , clrFg);
+
 			SDL_BlitSurface( sText,NULL,screen,&rcDest );
+
 			if (sText)
 				SDL_FreeSurface( sText );
+
 			CHAR_YPOS += PWADCHARSPACING;
-  	}
-  	
-  	// Draw IR cursor
-  	SDL_Rect rcDest = {ax,ay, 0,0};
+	  	}
+
+	  	// Draw IR cursor
+  		SDL_Rect rcDest = {ax,ay, 0,0};
 		SDL_BlitSurface(sCursor,NULL,screen,&rcDest );
-		
+
 		// Check for IR position on IWAD menu
-  	CHAR_YPOS = IWADCHARY;
-  	for (i=0; i<numIWADSFound; i++)
-  	{    
-	  	if ((ax > IWADBOXX) && (ax < (IWADBOXX + IWADBOXWIDTH)))
-				if ((ay > CHAR_YPOS-(IWADCHARSPACING/2)) && (ay < (CHAR_YPOS + (IWADCHARSPACING/2))))
-					if (wpaddown & WPAD_BUTTON_A || PAD_ButtonsDown(0)&PAD_BUTTON_A)
+	  	CHAR_YPOS = IWADCHARY;
+
+		int i;
+	  	for (i=0; i<numIWADSFound; i++)
+  		{
+		  	if ((ax > IWADBOXX) && (ax < (IWADBOXX + IWADBOXWIDTH)) && 
+			    (ay > CHAR_YPOS-(IWADCHARSPACING/2)) && (ay < (CHAR_YPOS + (IWADCHARSPACING/2))) && 
+			    (wpaddown & WPAD_BUTTON_A || PAD_ButtonsDown(0)&PAD_BUTTON_A))
+			{
 						selectedIWAD = i;
-			  CHAR_YPOS += IWADCHARSPACING;
-  	}		
-		
-  	
+			}
+
+			CHAR_YPOS += IWADCHARSPACING;
+  		}
 
 		// Check for IR position on PWAD menu
-  	CHAR_YPOS = PWADCHARY;
-  	for (x=0; ((x < numPWADSFound) && (x < PWADMAXPAGE)); x++)
-	  {
-	  		int i = PWADSTARTNUM + x;
-	  		if ((ax > PWADBOXX) && (ax < (PWADBOXX + PWADBOXWIDTH)))
-				  if ((ay > CHAR_YPOS-(PWADCHARSPACING/2)) && (ay < (CHAR_YPOS + (PWADCHARSPACING/2))))
-					{	
-						if (wpaddown & WPAD_BUTTON_A || PAD_ButtonsDown(0)&PAD_BUTTON_A)
+	  	CHAR_YPOS = PWADCHARY;
+
+		for (x=0; ((x < numPWADSFound) && (x < PWADMAXPAGE)); x++)
+		{
+			int i = PWADSTARTNUM + x;
+
+			if ((ax > PWADBOXX) && (ax < (PWADBOXX + PWADBOXWIDTH)) && 
+			    (ay > CHAR_YPOS-(PWADCHARSPACING/2)) && (ay < (CHAR_YPOS + (PWADCHARSPACING/2))) && 
+			    (wpaddown & WPAD_BUTTON_A || PAD_ButtonsDown(0)&PAD_BUTTON_A) &&
+			    (SDL_GetTicks() > joyWait))
+			{
+				bool deselected = false;
+
+				// Need to deselect?
+				for (selectedPWADIndex = 0; selectedPWADIndex < MAX_PWADS; selectedPWADIndex++)
+				{
+					if (selectedPWADs[selectedPWADIndex] == i)
+					{
+						deselected = true;
+						selectedPWADs[selectedPWADIndex] = -1;
+					}
+				}
+
+				// Find slot to store
+				if (!deselected)
+				{
+					for (selectedPWADIndex = 0; selectedPWADIndex < MAX_PWADS; selectedPWADIndex++) 
+					{
+						if (selectedPWADs[selectedPWADIndex] == -1)
 						{
-							if (SDL_GetTicks() > joyWait)
-							{
-								bool deselected = false;
-								
-									// Need to deselect?
-									for (selectedPWADIndex = 0; selectedPWADIndex < MAX_PWADS; selectedPWADIndex++) 
-										if (selectedPWADs[selectedPWADIndex] == i)
-										{
-											deselected = true;
-											selectedPWADs[selectedPWADIndex] = -1;
-										}
-											
-								// Find slot to store
-								if (!deselected)
-									for (selectedPWADIndex = 0; selectedPWADIndex < MAX_PWADS; selectedPWADIndex++) 
-										if (selectedPWADs[selectedPWADIndex] == -1)
-										{
-											selectedPWADs[selectedPWADIndex] = i;
-											break;
-										}
-	
-								joyWait = SDL_GetTicks() + 10;
-							}
+							selectedPWADs[selectedPWADIndex] = i;
+							break;
 						}
 					}
-					CHAR_YPOS += PWADCHARSPACING;
-	  }
+				}
 
-		if (wpaddown & WPAD_BUTTON_B || PAD_ButtonsDown(0)&PAD_TRIGGER_Z) exit(0);
-		if ((ax > STARTX) && (ax < STARTX+STARTWIDTH) && (ay >= STARTY-STARTHEIGHT) 
-				&& (selectedIWAD != -1)
-				&& (wpaddown & WPAD_BUTTON_A || PAD_ButtonsDown(0)&PAD_BUTTON_A))
+				joyWait = SDL_GetTicks() + 10;
+			}
+
+			CHAR_YPOS += PWADCHARSPACING;
+		}
+
+		if (wpaddown & WPAD_BUTTON_B || PAD_ButtonsDown(0)&PAD_TRIGGER_Z)
+		{
+			exit(0);
+		}
+
+		if ((ax > STARTX) && (ax < STARTX+STARTWIDTH) && (ay >= STARTY-STARTHEIGHT) && 
+		    (selectedIWAD != -1) && 
+		    (wpaddown & WPAD_BUTTON_A || PAD_ButtonsDown(0)&PAD_BUTTON_A))
+		{
 			done = true;
+		}
+
 		if ((wpaddown & WPAD_BUTTON_LEFT || PAD_ButtonsDown(0)&PAD_BUTTON_LEFT) && (SDL_GetTicks() > joyWait) && (PWADSTARTNUM > 0)) 
 		{
 			PWADSTARTNUM -= PWADMAXPAGE;
+
 			if (PWADSTARTNUM < 0)
 				PWADSTARTNUM = 0;
+
 			joyWait = SDL_GetTicks() + 10;
 		}
-		if ((wpaddown & WPAD_BUTTON_RIGHT || PAD_ButtonsDown(0)&PAD_BUTTON_RIGHT) && (SDL_GetTicks() > joyWait) && (PWADSTARTNUM + PWADMAXPAGE < numPWADSFound))
-  	{
-  		PWADSTARTNUM += PWADMAXPAGE;
-  		joyWait = SDL_GetTicks() + 10;
-  	}		
-		
-		SDL_Flip(screen);
-  }
 
-  // Set IWAD
-  if(sd){
-  selectedIWADFile = malloc(strlen("sd:/apps/wiidoom/data/") + strlen(foundIwads[selectedIWAD])+4);
-	sprintf(selectedIWADFile, "%s%s.wad", "sd:/apps/wiidoom/data/", foundIwads[selectedIWAD]);
-  }
-  if(usb){
-  selectedIWADFile = malloc(strlen("usb:/apps/wiidoom/data/") + strlen(foundIwads[selectedIWAD])+4);
-	sprintf(selectedIWADFile, "%s%s.wad", "usb:/apps/wiidoom/data/", foundIwads[selectedIWAD]);
-  }
-	
+		if ((wpaddown & WPAD_BUTTON_RIGHT || PAD_ButtonsDown(0)&PAD_BUTTON_RIGHT) && (SDL_GetTicks() > joyWait) && (PWADSTARTNUM + PWADMAXPAGE < numPWADSFound))
+		{
+ 			PWADSTARTNUM += PWADMAXPAGE;
+ 			joyWait = SDL_GetTicks() + 10;
+		}
+
+		SDL_Flip(screen);
+	}
+
+	// Set IWAD
+	if(sd)
+	{
+		selectedIWADFile = malloc(strlen("sd:/apps/wiidoom/data/") + strlen(foundIwads[selectedIWAD])+4);
+		sprintf(selectedIWADFile, "%s%s.wad", "sd:/apps/wiidoom/data/", foundIwads[selectedIWAD]);
+	}
+	else if(usb)
+	{
+		selectedIWADFile = malloc(strlen("usb:/apps/wiidoom/data/") + strlen(foundIwads[selectedIWAD])+4);
+		sprintf(selectedIWADFile, "%s%s.wad", "usb:/apps/wiidoom/data/", foundIwads[selectedIWAD]);
+	}
+
 	// Load PWADs
 	for (selectedPWADIndex = 0; selectedPWADIndex < MAX_PWADS; selectedPWADIndex++)
+	{
 		if (selectedPWADs[selectedPWADIndex] != -1)
 		{
-		char *p;
-		if(sd)
-  		p = "sd:/apps/wiidoom/data/pwads/";
-		if(usb)
-		p = "usb:/apps/wiidoom/data/pwads/";
-			char *f;
-			f = malloc(strlen(p) + strlen(foundPwads[selectedPWADs[selectedPWADIndex]]) + 4);
+			char* p = NULL;
+
+			if(sd)
+  				p = "sd:/apps/wiidoom/data/pwads/";
+			else if(usb)
+				p = "usb:/apps/wiidoom/data/pwads/";
+
+
+			char* f = malloc(strlen(p) + strlen(foundPwads[selectedPWADs[selectedPWADIndex]]) + 4);
+
 			sprintf(f, "%s%s.wad", p, foundPwads[selectedPWADs[selectedPWADIndex]]);
 			selectedPWADFiles[numSelectedPWADFiles] = malloc(sizeof(f));
 			strcpy(selectedPWADFiles[numSelectedPWADFiles], f);
 			sprintf(selectedPWADFiles[numSelectedPWADFiles++], "%s%s.wad", p, foundPwads[selectedPWADs[selectedPWADIndex]]);
-			
 		}
-		 
+	}
+
 	// Blank screen and start Doom
  	SDL_FillRect(screen, NULL, SDL_MapRGB(screen->format, 0, 0, 0));
  	SDL_Flip(screen);
- 
+
  	//if (strncmp(foundIwads[selectedIWAD], "doom1", 5) == 0)
 	//	return;
  	//if (strncmp(foundIwads[selectedIWAD], "doom2", 5) == 0)
 	//	return;
-		
-  SDL_FreeSurface(sCursor);
-  SDL_FreeSurface (logo);
-  SDL_FreeSurface(startButton);
-  TTF_CloseFont(doomfnt24);
-  //TTF_CloseFont(doomfnt18);
+
+	SDL_FreeSurface(sCursor);
+	SDL_FreeSurface (logo);
+	SDL_FreeSurface(startButton);
+	TTF_CloseFont(doomfnt24);
+	//TTF_CloseFont(doomfnt18);
 	TTF_Quit();
 	SDL_FreeSurface (screen);
 }
@@ -2107,12 +2174,12 @@ void WADPicker()
 
 void D_DoomMain(void)
 {
-	// Init wii stuff
+  // Init wii stuff
   wii_init();
-  
+
   // Load WAD Picker
-	WADPicker();
-	
+  WADPicker();
+
   D_DoomMainSetup(); // CPhipps - setup out of main execution stack
 
   D_DoomLoop ();  // never returns
@@ -2120,7 +2187,6 @@ void D_DoomMain(void)
 
 void wii_init()
 {
-     
   int res;
   u32 type;
   bool found = false;
@@ -2129,12 +2195,12 @@ void wii_init()
   fatUnmount("sd:/");
   __io_wiisd.shutdown();
   fatMountSimple("sd", &__io_wiisd);
-  
+
   //Init USB
   fatUnmount("usb:/");
   bool isMounted = fatMountSimple("usb", &__io_usbstorage);
   if(!isMounted)
-  {		
+  {
       fatUnmount("usb:/");
       fatMountSimple("usb", &__io_usbstorage);
 
@@ -2142,8 +2208,8 @@ void wii_init()
 
       if (isInserted)
       {
-          int retry = 10;		
-		
+          int retry = 10;
+
 		  while (retry)
 		  {
    	          isMounted = fatMountSimple("usb", &__io_usbstorage);
@@ -2153,7 +2219,7 @@ void wii_init()
 		  }
       }
   }
-  
+
   PAD_Init();
 
   // Init the wiimotes
